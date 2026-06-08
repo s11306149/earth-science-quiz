@@ -2,8 +2,8 @@ import streamlit as st
 import pandas as pd
 import random
 
-st.set_page_config(page_title="高中地科學科能力競賽 巨量題庫複習站", layout="centered")
-st.title("🌋 高中地科學科能力競賽 巨量題庫複習站")
+st.set_page_config(page_title="高中地科學科能力競賽 複習站", layout="centered")
+st.title("🌋 高中地科學科能力競賽 複習站")
 
 # 讀取 CSV 題庫
 @st.cache_data
@@ -28,16 +28,25 @@ if df is not None:
 
     st.sidebar.write(f"當前領域題數：{len(filtered_df)} 題")
 
-    # 利用 Session State 保持當前題目狀態
-    if "current_idx" not in st.session_state or st.sidebar.button("🎲 隨機換一題"):
+    # 初始化 session state
+    if "current_idx" not in st.session_state:
+        st.session_state.current_idx = random.randint(0, len(filtered_df) - 1) if len(filtered_df) > 0 else -1
+        st.session_state.submitted = False
+        st.session_state.user_ans = None
+
+    # 左側邊欄的強制換題按鈕
+    if st.sidebar.button("🎲 隨機換一題"):
         if len(filtered_df) > 0:
             st.session_state.current_idx = random.randint(0, len(filtered_df) - 1)
             st.session_state.submitted = False
             st.session_state.user_ans = None
-        else:
-            st.session_state.current_idx = -1
+            st.rerun()
 
-    if st.session_state.current_idx != -1:
+    if st.session_state.current_idx != -1 and len(filtered_df) > 0:
+        # 防呆機制：避免切換分類時 index 超出範圍
+        if st.session_state.current_idx >= len(filtered_df):
+            st.session_state.current_idx = 0
+             
         row = filtered_df.iloc[st.session_state.current_idx]
         
         st.subheader(f"題目：{row['題目']}")
@@ -55,7 +64,6 @@ if df is not None:
         if not st.session_state.submitted:
             if st.button("⚡ 確認提交"):
                 if user_choice:
-                    # 擷取括號內的字母 A, B, C, D
                     st.session_state.user_ans = user_choice[1]
                     st.session_state.submitted = True
                     st.rerun()
@@ -69,5 +77,12 @@ if df is not None:
                 st.error(f"❌ 答錯了！正確答案是：({correct_ans})")
             
             st.info(f"💡 **核心解析：**\n{row['詳解']}")
+            
+            # 【新增】答題完畢後，直接在下方顯示「下一題」按鈕
+            if st.button("➡️ 下一題"):
+                st.session_state.current_idx = random.randint(0, len(filtered_df) - 1)
+                st.session_state.submitted = False
+                st.session_state.user_ans = None
+                st.rerun()
     else:
         st.info("該分類下目前沒有題目，請打開 Google 試算表補充！")
